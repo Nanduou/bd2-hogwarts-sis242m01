@@ -484,16 +484,54 @@ SELECT SUM(valor_total) AS total_compras FROM compra;
 -- 5. CONTROLE DE TRANSAÇÕES (TCL)
 -- =====================================================================
 -- Questão 26
+START TRANSACTION;
+UPDATE aluno SET saldo_galeoes = saldo_galeoes - 50 WHERE nome = 'Draco Malfoy';
+UPDATE aluno SET saldo_galeoes = saldo_galeoes + 50 WHERE nome = 'Pansy Parkinson';
+COMMIT;
+SELECT nome, saldo_galeoes FROM aluno WHERE nome IN ('Draco Malfoy', 'Pansy Parkinson');
+-- Draco 150.00, Pansy 168.00
 
 -- Questão 27
+START TRANSACTION;
+UPDATE casa SET pontos = 0;
+SELECT nome_casa, pontos FROM casa;      -- tudo zerado dentro da transação
+ROLLBACK;
+SELECT nome_casa, pontos FROM casa;      -- placar voltou ao valor anterior
 
 -- Questão 28
+START TRANSACTION;
+INSERT INTO compra (id_aluno, id_produto, quantidade, data_compra)
+VALUES (1, 1, 1, '2026-11-10');
+SELECT saldo_galeoes FROM aluno WHERE id_aluno = 1;          -- 47.00
+SELECT estoque FROM produto WHERE id_produto = 1;            -- 8
+ROLLBACK;
+SELECT saldo_galeoes FROM aluno WHERE id_aluno = 1;          -- 54.00
+SELECT estoque FROM produto WHERE id_produto = 1;            -- 9
+-- As alterações feitas pelo trigger (baixa de estoque e desconto do saldo)
+-- foram desfeitas junto com o ROLLBACK: o trigger executa dentro da mesma
+-- transação do INSERT que o disparou, então tudo é revertido em conjunto
+-- (incluindo a própria linha da compra).
 
 -- Questão 29
+START TRANSACTION;
+INSERT INTO registro_pontos (id_aluno, id_prof, pontos, motivo, data_registro)
+VALUES (12, 4, 15, 'Cuidou das estufas no feriado', '2026-11-10');
+SAVEPOINT sp_pontos_legitimos;
+INSERT INTO registro_pontos (id_aluno, id_prof, pontos, motivo, data_registro)
+VALUES (6, 2, 100, 'Favoritismo descarado', '2026-11-10');
+ROLLBACK TO SAVEPOINT sp_pontos_legitimos;
+COMMIT;
+SELECT nome_casa, pontos FROM casa ORDER BY pontos DESC;
+-- Grifinória 100, Corvinal 50, Lufa-Lufa 50, Sonserina 30
+SELECT COUNT(*) FROM registro_pontos;   -- 17
 
 -- Questão 30
--- Resposta:
-
+SELECT @@autocommit;
+-- Resposta: 1 significa que o autocommit está ligado: cada comando é
+-- confirmado automaticamente, a menos que se abra uma transação explícita
+-- com START TRANSACTION. Um CREATE TABLE (DDL) no meio de uma transação
+-- causa COMMIT implícito: a transação aberta é confirmada na hora e não dá
+-- mais para fazer ROLLBACK do que veio antes.
 
 -- =====================================================================
 -- 6. DESAFIOS DE CONSULTA
